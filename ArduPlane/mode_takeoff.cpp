@@ -85,6 +85,7 @@ void ModeTakeoff::update()
         const uint16_t altitude = plane.relative_ground_altitude(RangeFinderUse::NONE,true);
         const Vector2f &groundspeed2d = ahrs.groundspeed_vector();
         const float direction = wrap_360(degrees(groundspeed2d.angle()));
+        const float direction2 = wrap_360(AP::ahrs().get_yaw_deg());
         const float groundspeed = groundspeed2d.length();
 
         // see if we will skip takeoff as already flying
@@ -110,7 +111,8 @@ void ModeTakeoff::update()
             plane.prev_WP_loc = plane.current_loc;
             plane.next_WP_loc = plane.current_loc;
             plane.next_WP_loc.offset_up_m(alt);
-            plane.next_WP_loc.offset_bearing(direction, dist);
+            // plane.next_WP_loc.offset_bearing(direction, dist);
+            plane.next_WP_loc.offset_bearing(direction2, dist);
 
             plane.crash_state.is_crashed = false;
 
@@ -118,23 +120,31 @@ void ModeTakeoff::update()
 
             plane.set_flight_stage(AP_FixedWing::FlightStage::TAKEOFF);
 
-            /*
-              don't lock in the takeoff loiter location until we reach
-              a ground speed of GPS_GND_CRS_MIN_SPD to cope with aircraft
-              with no compass or poor compass. If flying in a very
-              strong headwind then the is_flying() check above will
-              eventually trigger
-             */
-            if (!plane.throttle_suppressed &&
-                groundspeed > GPS_GND_CRS_MIN_SPD) {
-                gcs().send_text(MAV_SEVERITY_INFO, "Takeoff to %.0fm for %.1fm heading %.1f deg",
-                                alt, dist, direction);
-                plane.takeoff_state.start_time_ms = millis();
-                plane.takeoff_state.level_off_start_time_ms = 0;
-                plane.takeoff_state.throttle_max_timer_ms = millis();
-                takeoff_mode_setup = true;
-                plane.steer_state.hold_course_cd = wrap_360_cd(direction*100); // Necessary to allow Plane::takeoff_calc_roll() to function.
-            }
+            // /*
+            //   don't lock in the takeoff loiter location until we reach
+            //   a ground speed of GPS_GND_CRS_MIN_SPD to cope with aircraft
+            //   with no compass or poor compass. If flying in a very
+            //   strong headwind then the is_flying() check above will
+            //   eventually trigger
+            //  */
+            // if (!plane.throttle_suppressed &&
+            //     groundspeed > GPS_GND_CRS_MIN_SPD) {
+            //     gcs().send_text(MAV_SEVERITY_INFO, "Takeoff to %.0fm for %.1fm heading %.1f deg",
+            //                     alt, dist, direction);
+            //     plane.takeoff_state.start_time_ms = millis();
+            //     plane.takeoff_state.level_off_start_time_ms = 0;
+            //     plane.takeoff_state.throttle_max_timer_ms = millis();
+            //     takeoff_mode_setup = true;
+            //     plane.steer_state.hold_course_cd = wrap_360_cd(direction*100); // Necessary to allow Plane::takeoff_calc_roll() to function.
+            // }
+        
+            gcs().send_text(MAV_SEVERITY_INFO, "Takeoff heading locked at %.1f deg", direction2);
+            plane.takeoff_state.start_time_ms = millis();
+            plane.takeoff_state.level_off_start_time_ms = 0;
+            plane.takeoff_state.throttle_max_timer_ms = millis();
+            takeoff_mode_setup = true;
+            plane.steer_state.hold_course_cd = wrap_360_cd(direction2*100); // Necessary to allow Plane::takeoff_calc_roll() to function.        
+        
         }
     }
     // check for optional takeoff timeout
@@ -142,23 +152,25 @@ void ModeTakeoff::update()
         plane.set_flight_stage(AP_FixedWing::FlightStage::NORMAL);
         takeoff_mode_setup = false;
     }
-    // We update the waypoint to follow once we're past TKOFF_LVL_ALT or we
-    // pass the target location. The check for target location prevents us
-    // flying towards a wrong location if we can't climb.
-    // This will correct any yaw estimation errors (caused by EKF reset
-    // or compass interference from max throttle), since it's using position bearing.
+    // // We update the waypoint to follow once we're past TKOFF_LVL_ALT or we
+    // // pass the target location. The check for target location prevents us
+    // // flying towards a wrong location if we can't climb.
+    // // This will correct any yaw estimation errors (caused by EKF reset
+    // // or compass interference from max throttle), since it's using position bearing.
+    // const float altitude_cm = plane.current_loc.alt - start_loc.alt;
+    // if (plane.flight_stage == AP_FixedWing::FlightStage::TAKEOFF
+    //     && plane.steer_state.hold_course_cd == -1 // This is the enter-once flag.
+    //     && (altitude_cm >= (level_alt * 100.0f) || start_loc.get_distance(plane.current_loc) >= dist)
+    // ) {
+    //     const float direction = start_loc.get_bearing_to(plane.current_loc) * 0.01;
+    //     plane.next_WP_loc = start_loc;
+    //     plane.next_WP_loc.offset_bearing(direction, dist);
+    //     plane.next_WP_loc.offset_up_m(alt);
+    //     plane.steer_state.hold_course_cd = wrap_360_cd(direction*100); // Necessary to allow Plane::takeoff_calc_roll() to function.
+    // }
+
     const float altitude_cm = plane.current_loc.alt - start_loc.alt;
-    if (plane.flight_stage == AP_FixedWing::FlightStage::TAKEOFF
-        && plane.steer_state.hold_course_cd == -1 // This is the enter-once flag.
-        && (altitude_cm >= (level_alt * 100.0f) || start_loc.get_distance(plane.current_loc) >= dist)
-    ) {
-        const float direction = start_loc.get_bearing_to(plane.current_loc) * 0.01;
-        plane.next_WP_loc = start_loc;
-        plane.next_WP_loc.offset_bearing(direction, dist);
-        plane.next_WP_loc.offset_up_m(alt);
-        plane.steer_state.hold_course_cd = wrap_360_cd(direction*100); // Necessary to allow Plane::takeoff_calc_roll() to function.
-    }
-        
+
     // We finish the initial level takeoff if we climb past
     // TKOFF_ALT or we pass the target location. The check for
     // target location prevents us flying forever if we can't climb.
