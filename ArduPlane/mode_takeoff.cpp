@@ -84,26 +84,32 @@ void ModeTakeoff::update()
         plane.auto_state.takeoff_altitude_rel_cm = alt * 100;
         const uint16_t altitude = plane.relative_ground_altitude(RangeFinderUse::NONE,true);
         const Vector2f &groundspeed2d = ahrs.groundspeed_vector();
-        const float direction = wrap_360(degrees(groundspeed2d.angle()));
-        const float direction2 = wrap_360(AP::ahrs().get_yaw_deg());
+        // const float direction = wrap_360(degrees(groundspeed2d.angle()));
+        const float direction2 = degrees(ahrs.get_yaw());
         const float groundspeed = groundspeed2d.length();
 
         // see if we will skip takeoff as already flying
         if (plane.is_flying() && (millis() - plane.started_flying_ms > 10000U) && groundspeed > 3) {
-            if (altitude >= alt) {
-                gcs().send_text(MAV_SEVERITY_INFO, "Above TKOFF alt - loitering");
-                plane.next_WP_loc = plane.current_loc;
-                takeoff_mode_setup = true;
-                plane.set_flight_stage(AP_FixedWing::FlightStage::NORMAL);
-            } else {
-                gcs().send_text(MAV_SEVERITY_INFO, "Climbing to TKOFF alt then loitering");
-                start_loc = plane.current_loc;
-                plane.next_WP_loc = plane.current_loc;
-                plane.next_WP_loc.offset_up_m(alt - altitude);
-                plane.next_WP_loc.offset_bearing(direction, dist);
-                takeoff_mode_setup = true;
-                plane.set_flight_stage(AP_FixedWing::FlightStage::TAKEOFF);
-            }
+            // if (altitude >= alt) {
+                // gcs().send_text(MAV_SEVERITY_INFO, "Above TKOFF alt - loitering");
+                // plane.next_WP_loc = plane.current_loc;
+                // takeoff_mode_setup = true;
+                // plane.set_flight_stage(AP_FixedWing::FlightStage::NORMAL);
+            // } else {
+                // gcs().send_text(MAV_SEVERITY_INFO, "Climbing to TKOFF alt then loitering");
+                // start_loc = plane.current_loc;
+                // plane.next_WP_loc = plane.current_loc;
+                // plane.next_WP_loc.offset_up_m(alt - altitude);
+                // plane.next_WP_loc.offset_bearing(direction, dist);
+                // takeoff_mode_setup = true;
+                // plane.set_flight_stage(AP_FixedWing::FlightStage::TAKEOFF);
+            // }
+
+            gcs().send_text(MAV_SEVERITY_INFO, "Switched to TKOFF - already flying. Loitering");
+            plane.next_WP_loc = plane.current_loc;
+            takeoff_mode_setup = true;
+            plane.set_flight_stage(AP_FixedWing::FlightStage::NORMAL);
+
             // not flying so do a full takeoff sequence
         } else {
             // setup target waypoint and alt for loiter at dist and alt from start
