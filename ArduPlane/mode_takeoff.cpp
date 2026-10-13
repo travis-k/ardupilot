@@ -82,7 +82,7 @@ void ModeTakeoff::update()
     const float dist = target_dist;
     if (!takeoff_mode_setup) {
         plane.auto_state.takeoff_altitude_rel_cm = alt * 100;
-        const uint16_t altitude = plane.relative_ground_altitude(RangeFinderUse::NONE,true);
+        // const uint16_t altitude = plane.relative_ground_altitude(RangeFinderUse::NONE,true);
         const Vector2f &groundspeed2d = ahrs.groundspeed_vector();
         // const float direction = wrap_360(degrees(groundspeed2d.angle()));
         const float direction2 = degrees(ahrs.get_yaw());
@@ -144,13 +144,14 @@ void ModeTakeoff::update()
             //     plane.steer_state.hold_course_cd = wrap_360_cd(direction*100); // Necessary to allow Plane::takeoff_calc_roll() to function.
             // }
         
-            gcs().send_text(MAV_SEVERITY_INFO, "Takeoff heading locked at %.1f deg", direction2);
-            plane.takeoff_state.start_time_ms = millis();
-            plane.takeoff_state.level_off_start_time_ms = 0;
-            plane.takeoff_state.throttle_max_timer_ms = millis();
-            takeoff_mode_setup = true;
-            plane.steer_state.hold_course_cd = wrap_360_cd(direction2*100); // Necessary to allow Plane::takeoff_calc_roll() to function.        
-        
+            if (!plane.throttle_suppressed) {
+                gcs().send_text(MAV_SEVERITY_INFO, "Takeoff heading locked at %.1f deg", direction2);
+                plane.takeoff_state.start_time_ms = millis();
+                plane.takeoff_state.level_off_start_time_ms = 0;
+                plane.takeoff_state.throttle_max_timer_ms = millis();
+                takeoff_mode_setup = true;
+                plane.steer_state.hold_course_cd = wrap_360_cd(direction2*100); // Necessary to allow Plane::takeoff_calc_roll() to function.        
+            }
         }
     }
     // check for optional takeoff timeout
